@@ -1,0 +1,35 @@
+<div class="container" *ngIf="!isViewingOffer()">
+    <div>
+        <button (click)="addNew()">
+            Add New Offer
+        </button>
+    </div>
+    <div>
+        Offers
+        <div row mt-5>
+            <div class="col-md-4 mb-3" *ngFor="let offer of offers">
+                <div class="card text-center pointer" (click)="viewOffer(offer)">
+                    <div class="card-body">
+                        <h5 class="card-title">{{offer.title}}</h5>
+                        <div class="card-text">Type- {{offer.type}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="container" *ngIf="isViewingOffer()">
+    <div>
+        <button (click)="back()">back</button>
+    </div>
+    <div class="card text-center pointer" >
+        <div class="card-body" *ngIf="currentOffer">
+            <h5 class="card-title">Title{{currentOffer.title}}</h5>
+            <div class="card-text">Type- {{currentOffer.type}}</div>
+            <div class="card-text">Description- {{currentOffer.description}}</div>
+            <div class="card-text">Phone number- {{currentOffer.phone}}</div>
+            <div class="card-text">Email- {{currentOffer.email}}</div>
+            <div class="card-text">{{currentOffer.viewCount}} now watching</div>
+        </div>
+    </div>
+</div>
