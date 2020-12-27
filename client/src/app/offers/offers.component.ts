@@ -54,6 +54,7 @@ export class OffersComponent implements OnInit {
       this.viewingOffer = false;
     }, err =>{
       console.log(err);
+      this.router.navigate(['/login']);
     })
   }
   

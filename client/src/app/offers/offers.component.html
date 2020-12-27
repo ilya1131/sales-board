@@ -22,13 +22,13 @@
     <div>
         <button (click)="back()">back</button>
     </div>
-    <div class="card text-center pointer" >
+    <div class="card text-center" >
         <div class="card-body" *ngIf="currentOffer">
-            <h5 class="card-title">Title{{currentOffer.title}}</h5>
-            <div class="card-text">Type- {{currentOffer.type}}</div>
-            <div class="card-text">Description- {{currentOffer.description}}</div>
-            <div class="card-text">Phone number- {{currentOffer.phone}}</div>
-            <div class="card-text">Email- {{currentOffer.email}}</div>
+            <h5 class="card-title">{{currentOffer.title}}</h5>
+            <div class="card-text">Type: {{currentOffer.type}}</div>
+            <p class="card-text">Description: {{currentOffer.description}}</p>
+            <div class="card-text">Call: <a class="card-link" [href]="'tel:' + currentOffer.phone">{{currentOffer.phone}}</a></div>
+            <div class="card-text">Mail: <a class="card-link" [href]="'mailto:' + currentOffer.email">{{currentOffer.email}}</a></div>
             <div class="card-text">{{currentOffer.viewCount}} now watching</div>
         </div>
     </div>
