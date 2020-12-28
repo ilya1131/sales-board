@@ -1,8 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
-const enums = require('../lib/enums');
 
+const enums = require('../lib/enums');
 const User = require('../models/user');
 const Offer = require('../models/offer');
 
@@ -22,6 +22,7 @@ mongoose.connect(db,{ useFindAndModify: false }, err => {
 
 router.post('/register', async (req, res) => {
     const userData = req.body;
+
     try {
         UserInSystem = await User.findOne({email: userData.email}).exec()
         if (UserInSystem !== null) {
@@ -37,32 +38,29 @@ router.post('/register', async (req, res) => {
     }   
 })
 
-router.post('/login', (req,res) => {
+router.post('/login', async (req,res) => {
     const userData = req.body;
-    User.findOne({
-        email: userData.email
-    }, (err, user) => {
-        if(err) {
-            console.log(err);
-            res.status(400).send(err);
-        } else {
-            if (!user) {
-                res.status(401).send('Invalid user');
-            } else {
-                if (user.password !== userData.password) {
-                    res.status(401).send('Invalid password');
-                }
-                else {
-                    const payload = {
-                        subject: user._id
-                    };
-                    const token = jwt.sign(payload, secret);
-                    tokens.push(token);
-                    res.status(200).send({ token });
-                }
-            }
+
+    try {
+        const user = await User.findOne({ email: userData.email}).exec();
+        if (!user) {
+            res.statusMessage = 'Invalid user'
+            return res.sendStatus(401);
         }
-    })
+        if (user.password !== userData.password) {
+            res.statusMessage = 'Invalid password';
+            return res.sendStatus(401);
+        }
+        const payload = {
+            subject: user._id
+        };
+
+        const token = jwt.sign(payload, secret);
+        tokens.push(token);
+        res.status(200).send({ token });
+    } catch (err) {
+        res.status(400).send(err);
+    }
 })
 
 router.delete('/logout', (req, res) => {    
@@ -107,57 +105,59 @@ router.get('/offers', authenticateToken, async(req, res) => {
         res.status(200).send({
             offers, 
             count, 
-            userType: user.type});
+            userType: user.type
+        });
     } catch (err){
         console.error(err);
         res.status(400).send(err);
     }
 })
 
-router.post('/add-offer', authenticateToken, (req, res) => {
+router.post('/add-offer', authenticateToken, async (req, res) => {
     const offerData = req.body;
     const offer = new Offer(offerData);
-    offer.save((err, offerRes) => {
-        if (err) {
-            console.error(err);
+    try {
+        const offer = new Offer(offerData);
+        const addedOffer = await offer.save();
+        res.status(200).send(addedOffer);
+    } catch (err) {
+        console.error(err);
             res.status(400).send(err);
-        }
-        else {
-            res.status(200).send(offerRes);
-        }
-    })
+    }
 })
 
-router.get('/offer', authenticateToken, (req, res) => {
+router.get('/offer', authenticateToken, async (req, res) => {
     const offerId = req.query.id;
     const userToken = getToken(req);
+
     setTimeout(function(){
         removeFromWatching(offerId, userToken);
     },10*1000*60)
-    Offer.findById(offerId, (err, offer) => {
-        if (err || !offer) {
-            res.sendStatus(401);
+    try {
+        const offer = await Offer.findById(offerId).exec();
+        if (!offer) {
+            res.sendStatus(400);
         }
+
         if (!offer.viewing.includes(userToken)) {
             offer.viewing.push(userToken);
         }
-        offer.save((saveErr, updatedOffer) => {
-            if (saveErr) {
-                res.sendStatus(401);
-            }
-            res.status(200).send(updatedOffer);
-        })
-    })
+        const updatedOffer = await offer.save();
+        res.status(200).send(updatedOffer);
+    } catch (err) {
+        res.sendStatus(400);
+    }
 })
-router.get('/watching', authenticateToken, (req,res) => {
-    const offerId = req.query.id;
-    Offer.findById(offerId, (err, offer) => {
-        if (err || !offer) {
-            res.sendStatus(404);
-        }
 
+router.get('/watching', authenticateToken, async (req,res) => {
+    const offerId = req.query.id;
+
+    try {
+        const offer = await Offer.findById(offerId).exec();
         return res.status(200).send({count: offer.viewing.length});
-    })
+    } catch (err) {
+        res.sendStatus(404);
+    }
 })
 
 router.put('/remvoe-watching', authenticateToken, async (req, res) => {
@@ -234,9 +234,6 @@ router.put('/verify-offers', authenticateToken, async(req, res) => {
     }
 })
 
-
-
-
 function getToken (req) {
     const authHeader = req.headers['authorization'];
     return authHeader && authHeader.split(' ')[1];
@@ -280,8 +277,6 @@ async function checkIsNoOneWatching (token, offerId) {
     } catch {
         return false;
     }
-
-
 }
 
 module.exports = router;
