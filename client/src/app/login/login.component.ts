@@ -17,13 +17,11 @@ export class LoginComponent {
   }
   
   submit (loginData: any): void {
-    console.log(loginData);
     this.auth.loginUser(loginData).subscribe(res => {
-      console.log(res);
       localStorage.setItem('token', res.token);
       this.router.navigate(['/offers'])
     }, err => {
-      console.log(err);
+      console.error(err);
     })
   }
 }

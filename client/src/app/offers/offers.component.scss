@@ -4,3 +4,22 @@
 .card-link {
     text-decoration: none;
 }
+.filter-label {
+    margin-right: 10px;
+}
+.add-new-offer {
+    margin: 10px 0;
+}
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    width: 300px;
+    .disabled {
+        pointer-events: none;
+        color: #6c757d;
+    }
+}
+
+.right {
+    float: right;
+}

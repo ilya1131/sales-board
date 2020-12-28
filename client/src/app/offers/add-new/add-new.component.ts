@@ -8,7 +8,11 @@ import { OffersService } from 'src/app/offers.service';
   styleUrls: ['./add-new.component.scss']
 })
 export class AddNewComponent implements OnInit {
-
+  readonly offerTypes = [
+    {name: 'type1', value: 'type1'},
+    {name: 'type2', value: 'type2'},
+    {name: 'type3', value: 'type3'}
+  ];
   constructor(private router: Router, private offersService: OffersService) { }
 
   ngOnInit(): void {
@@ -18,12 +22,11 @@ export class AddNewComponent implements OnInit {
   }
 
   submit(offer: any) {
-    console.log(offer);
     this.offersService.addOffer(offer).subscribe(res => {
-      console.log(res);
-
+      this.router.navigate(['/offers']);
     }, err => {
-      console.log(err);
+      console.error(err);
+      this.router.navigate(['/login']);
     })
   }
 }

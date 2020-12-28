@@ -1,12 +1,27 @@
 <div class="container" *ngIf="!isViewingOffer()">
-    <div>
-        <button (click)="addNew()">
+    <div class="pt-2 pb-2">
+        <button class="btn btn-secondary" (click)="addNew()">
             Add New Offer
         </button>
+        <div class="pt-2">
+            <div class="input-group mr-6">
+                <label for="#typeFilter" class="filter-label">Fillter By type</label>
+                <select [(ngModel)]="selectedType" (change)="filterByType()" id="typeFilter">
+                    <option *ngFor="let type of offerTypes" [ngValue]="type">
+                      {{ type.value }}
+                    </option>
+                  </select>
+              </div>
+        </div>
+        
     </div>
     <div>
-        Offers
-        <div row mt-5>
+        <h1>Offers</h1> 
+        <div class="pagination">
+            <a (click)="prev()" [class.disabled]="currentPage === 0" class="card-link pointer">previous page</a>
+            <a class="card-link pointer" [class.disabled]="isNextDisabled()" (click)="next()">next page</a>
+        </div>
+        <div class="row mt-5">
             <div class="col-md-4 mb-3" *ngFor="let offer of offers">
                 <div class="card text-center pointer" (click)="viewOffer(offer)">
                     <div class="card-body">
@@ -19,8 +34,9 @@
     </div>
 </div>
 <div class="container" *ngIf="isViewingOffer()">
-    <div>
-        <button (click)="back()">back</button>
+    <div class="add-new-offer">
+        <button class="btn btn-secondary" (click)="back()">back</button>
+        <button class="btn btn-danger right" (click)="delete()" *ngIf="isShowDelete()">Delete</button>
     </div>
     <div class="card text-center" >
         <div class="card-body" *ngIf="currentOffer">

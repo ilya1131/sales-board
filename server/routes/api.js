@@ -5,10 +5,8 @@ const enums = require('../lib/enums');
 
 const User = require('../models/user');
 const Offer = require('../models/offer');
-const { off } = require('../models/user');
 
 const router = express.Router();
-const ObjectId = require('mongoose').Types.ObjectId; 
 const db = 'mongodb://localhost:27017/sales-board';
 const secret = 'secret';
 let tokens = [];
@@ -22,21 +20,21 @@ mongoose.connect(db,{ useFindAndModify: false }, err => {
     }
 })
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
     const userData = req.body;
-    const user = new User(userData);
-    user.save((err, userRes) => {
-        if (err) {
-            console.error(err);
+    try {
+        UserInSystem = await User.findOne({email: userData.email}).exec()
+        if (UserInSystem !== null) {
+            res.statusMessage = 'This email address is already being used'
+            return res.sendStatus(406);
         }
-        else {
-            const payload = {
-                subject: userRes._id
-            };
-            const token = jwt.sign(payload, secret);
-            res.status(200).send({ token });
-        }
-    })
+        const user = new User(userData);
+        await user.save();
+        res.status(200).send({status: 'OK'});
+    } catch (err) {
+        console.error(err);
+        res.status(400).send(err);
+    }   
 })
 
 router.post('/login', (req,res) => {
@@ -46,6 +44,7 @@ router.post('/login', (req,res) => {
     }, (err, user) => {
         if(err) {
             console.log(err);
+            res.status(400).send(err);
         } else {
             if (!user) {
                 res.status(401).send('Invalid user');
@@ -66,25 +65,53 @@ router.post('/login', (req,res) => {
     })
 })
 
-router.delete('/logout', (req, res) => {
-    
+router.delete('/logout', (req, res) => {    
     const tokenToRemove = getToken(req)
-    console.log('token-- ',tokenToRemove);
     if (tokenToRemove == null) {
         return res.sendStatus(401);
     }
     tokens = tokens.filter(token => token !== tokenToRemove);
-    console.log('tokens', tokens);
     res.sendStatus(204);
 })
 
-router.get('/offers', authenticateToken, (req, res) => {
-    Offer.find({},{title:1, type:1},(err, offers) => {
-        if (err) console.error(err);
-        else {
-            res.status(200).send(offers);
+router.get('/offers', authenticateToken, async(req, res) => {
+    const type = req.query.type;
+    const query = {};
+    const resultsForRegular = 3;
+    const resultForOthers = 20;
+    const page = req.query.page ? req.query.page : 0;
+    let count = 0;
+    let offers = []
+    if (type !== 'all') {
+        query.type = type;
+    };
+    try {
+        const user = await getUser(req.user.subject);
+        if (user.type === enums.userTypes.regular) {
+            if (type === 'all') {
+                count = await Offer.countDocuments().exec();
+                for (let typeToQuery of Object.values(enums.offerTypes)) {
+                    query.type = typeToQuery
+                    offers = [...offers, ...await Offer.find(query,{title:1, type:1}).skip(resultsForRegular * page).limit(resultsForRegular).exec()];
+
+                }
+            } else {
+                count = await Offer.countDocuments(query).exec();
+                offers = await Offer.find(query,{title:1, type:1}).skip(resultsForRegular * page).limit(resultsForRegular).exec();
+            }
+        } else {
+            offers = await Offer.find(query,{title:1, type:1}).skip(resultForOthers * page).limit(resultForOthers).exec();
+            count = await Offer.countDocuments(query).exec();
         }
-    })
+        
+        res.status(200).send({
+            offers, 
+            count, 
+            userType: user.type});
+    } catch (err){
+        console.error(err);
+        res.status(400).send(err);
+    }
 })
 
 router.post('/add-offer', authenticateToken, (req, res) => {
@@ -93,6 +120,7 @@ router.post('/add-offer', authenticateToken, (req, res) => {
     offer.save((err, offerRes) => {
         if (err) {
             console.error(err);
+            res.status(400).send(err);
         }
         else {
             res.status(200).send(offerRes);
@@ -123,7 +151,6 @@ router.get('/offer', authenticateToken, (req, res) => {
 })
 router.get('/watching', authenticateToken, (req,res) => {
     const offerId = req.query.id;
-    const userToken = getToken(req);
     Offer.findById(offerId, (err, offer) => {
         if (err || !offer) {
             res.sendStatus(404);
@@ -139,9 +166,71 @@ router.put('/remvoe-watching', authenticateToken, async (req, res) => {
 
     try {
         await removeFromWatching(offerId, userToken);
-        res.status(200).send({tatus: 'OK'});
+        res.status(200).send({status: 'OK'});
     } catch (err) {
         res.sendStatus(400);
+    }
+})
+
+router.delete('/delete-offer', authenticateToken, async (req, res) => {
+    const offerId = req.query.id;
+    try {
+        const user = await getUser(req.user.subject);
+        const isNoOneWatching = await checkIsNoOneWatching(getToken(req), offerId);
+        if (user.type !== enums.userTypes.admin || isNoOneWatching !== true) {
+            res.statusMessage ="A user is watching the offer";
+            return res.sendStatus(403);
+        }
+
+        await Offer.findByIdAndDelete(offerId).exec();
+        
+        res.status(200).send({tatus: 'OK'});
+    } catch (err){
+        console.log(err);
+        res.status(400).send(err);
+    }
+})
+router.put('/verify-offers', authenticateToken, async(req, res) => {
+    const type = req.body.type.value;
+    const offersIds = req.body.offersIds;
+    const query = {};
+    const resultsForRegular = 3;
+    const resultForOthers = 20;
+    const page = req.body.page ? req.body.page : 0;
+    let offers = []
+    let verified = true;
+    if (type !== 'all') {
+        query.type = type;
+    };
+    try {
+        const user = await getUser(req.user.subject);
+        if (user.type === enums.userTypes.regular) {
+            if (type === 'all') {
+                for (let typeToQuery of Object.values(enums.offerTypes)) {
+                    query.type = typeToQuery
+                    offers = [...offers, ...await Offer.find(query,{}).skip(resultsForRegular * page).limit(resultsForRegular).exec()];
+                }
+            } else {
+                offers = await Offer.find(query,{}).skip(resultsForRegular * page).limit(resultsForRegular).exec();
+            }
+        } else {
+            offers = await Offer.find(query,{}).skip(resultForOthers * page).limit(resultForOthers).exec();
+        }
+        if (offersIds.length === offers.length) {
+            for (const [index, offer] of offers.entries()) {
+                if (offersIds[index] !== offer._id.toString()) {
+                    verified = false;
+                    break;
+                }
+            }
+        } else {
+            verified = false
+        }
+        
+        res.status(200).send({ verified });
+    } catch (err){
+        console.error(err);
+        res.status(400).send(err)
     }
 })
 
@@ -174,6 +263,25 @@ function removeFromWatching (offerId, tokenToRemove) {
             return offer.save();
         }
     })
+}
+
+function getUser (userId) {
+    return User.findById(userId);
+}
+
+async function checkIsNoOneWatching (token, offerId) {
+    try {
+        const offer = await Offer.findById(offerId).exec();
+        if ((offer.viewing.length === 1 && offer.viewing[0] === token) || offer.viewing.length === 0) {
+            return true
+        }
+
+        return false;
+    } catch {
+        return false;
+    }
+
+
 }
 
 module.exports = router;

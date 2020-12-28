@@ -1,4 +1,4 @@
-<div class="row pt-5">
+<div class="row pt-2">
     <div class="col-md-6 max-auto">
         <button type="button" class="btn btn-secondary mb-2" (click)="back()">Back</button>
         <div class="card rounded-0">
@@ -16,8 +16,12 @@
                         <textarea ngModel type="text" name="description" class="form-control rounded-0" maxlength="200"></textarea>
                     </div>
                     <div class="form-group">
-                        <label for="">Type</label>
-                        <input ngModel type="text" name="type" class="form-control rounded-0">
+                        <label for="#typeSelect">Type</label>
+                        <select ngModel id="typeSelect" name="type" class="form-control rounded-0">
+                            <option *ngFor="let type of offerTypes" [ngValue]="type.value">
+                            {{ type.value }}
+                            </option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="">Phone</label>
